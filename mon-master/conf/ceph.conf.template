@@ -1,0 +1,12 @@
+[global]
+    fsid = @@FSID@@
+    mon_initial_members = mon-master
+    mon_host = @@IP_ADDRESS@@
+    public_network = @@NETWORK@@
+    auth_cluster_required = cephx
+    auth_service_required = cephx
+    auth_client_required = cephx
+    osd_pool_default_size = 2
+    osd_pool_default_min_size = 2
+    osd_pool_default_pg_num = 333
+    osd_crush_chooseleaf_type = 1

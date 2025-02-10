@@ -1,0 +1,5 @@
+[global]
+	fsid = @@FSID@@
+	mon_host = [v2:@@MON_IP_ADDRESS@@:3300/0,v1:@@MON_IP_ADDRESS@@:6789/0]
+[mds.mds]
+	host = mds

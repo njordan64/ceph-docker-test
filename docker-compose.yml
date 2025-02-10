@@ -1,0 +1,452 @@
+services:
+  mon-master:
+    image: quay.io/ceph/ceph:v17
+    container_name: mon-master
+    entrypoint: /usr/local/bin/entrypoint.sh
+    environment:
+      - NODE_NAME=mon-master
+      - CEPH_USE_RANDOM_NONCE=1
+      - TCMALLOC_MAX_TOTAL_THREAD_CACHE_BYTES=134217728
+      - CONTAINER_IMAGE=quay.io/ceph/ceph:v17
+      - PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      - I_AM_IN_A_CONTAINER=1
+      - CEPH_VERSION=quincy
+      - CEPH_POINT_RELEASE=-17.2.6
+      - CEPH_DEVEL=false
+      - CEPH_REF=quincy
+      - OSD_FLAVOR=default
+      - FSID=$FSID
+    ports:
+      - "3300:3300"
+    volumes:
+      - type: bind
+        source: mon-master/entrypoint.sh
+        target: /usr/local/bin/entrypoint.sh
+      - type: bind
+        source: mon-master/start-ceph-mon.sh
+        target: /usr/local/bin/start-ceph-mon.sh
+      - type: bind
+        source: ./mon-master/ceph-mon-master
+        target: /var/lib/ceph/mon/ceph-mon-master
+        bind:
+          selinux: "z"
+      - type: bind
+        source: ./mon-master/conf
+        target: /etc/ceph
+        bind:
+          selinux: "z"
+      - type: bind
+        source: /run/udev
+        target: /run/udev
+      - type: bind
+        source: ./mon-master/run
+        target: /var/run/ceph
+        bind:
+          selinux: "z"
+      - type: bind
+        source: ./mon-master/log
+        target: /var/log/ceph
+        bind:
+          selinux: "z"
+      - type: bind
+        source: ./mon-master/crash
+        target: /var/lib/ceph/crash
+        bind:
+          selinux: "z"
+      - type: bind
+        source: ./shared-data
+        target: /var/lib/ceph/shared-data
+    healthcheck:
+      test: ["CMD", "/usr/bin/ceph", "-s", "--connect-timeout", "2"]
+      interval: 10s
+      timeout: 30s
+      retries: 5
+      start_period: 5s
+    networks:
+      - ceph-net
+  
+  mgr-master:
+    image: quay.io/ceph/ceph:v17
+    container_name: mgr-master
+    entrypoint: /usr/local/bin/entrypoint.sh
+    command: infinity
+    environment:
+      - CONTAINER_IMAGE=quay.io/ceph/ceph:v17
+      - NODE_NAME=ceph-master
+      - CEPH_USE_RANDOM_NONCE=1
+      - TCMALLOC_MAX_TOTAL_THREAD_CACHE_BYTES=134217728
+      - PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      - I_AM_IN_A_CONTAINER=1
+      - CEPH_VERSION=quincy
+      - CEPH_POINT_RELEASE=-17.2.6
+      - CEPH_DEVEL=false
+      - CEPH_REF=quincy
+      - OSD_FLAVOR=default
+      - FSID=$FSID
+    volumes:
+      - type: bind
+        source: mgr-master/entrypoint.sh
+        target: /usr/local/bin/entrypoint.sh
+      - type: bind
+        source: mgr-master/start-ceph-mgr.sh
+        target: /usr/local/bin/start-ceph-mgr.sh
+      - type: bind
+        source: ./mgr-master/ceph-master
+        target: /var/lib/ceph/mgr/ceph-master
+        bind:
+          selinux: "z"
+      - type: bind
+        source: ./mgr-master/conf
+        target: /etc/ceph
+        bind:
+          selinux: "z"
+      - type: bind
+        source: /run/udev
+        target: /run/udev
+      - type: bind
+        source: ./mgr-master/run
+        target: /var/run/ceph
+        bind:
+          selinux: "z"
+      - type: bind
+        source: ./mgr-master/log
+        target: /var/log/ceph
+        bind:
+          selinux: "z"
+      - type: bind
+        source: ./mgr-master/crash
+        target: /var/lib/ceph/crash
+        bind:
+          selinux: "z"
+      - type: bind
+        source: ./shared-data
+        target: /var/lib/ceph/shared-data
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep -v grep | grep -q /usr/bin/ceph-mgr"]
+      interval: 10s
+      timeout: 30s
+      retries: 5
+      start_period: 5s
+    depends_on:
+      mon-master:
+        condition: service_healthy
+    networks:
+      - ceph-net
+  
+  osd-0:
+    image: quay.io/ceph/ceph@sha256:9c067c50038de818e10ab7887929b6bd496d5dcfe55fa1343854a54e61a82fab
+    container_name: osd-0
+    privileged: true
+    entrypoint: /usr/local/bin/entrypoint.sh
+    environment:
+      - TCMALLOC_MAX_TOTAL_THREAD_CACHE_BYTES=134217728
+      - CONTAINER_IMAGE=quay.io/ceph/ceph@sha256:9c067c50038de818e10ab7887929b6bd496d5dcfe55fa1343854a54e61a82fab
+      - NODE_NAME=osd-0
+      - CEPH_USE_RANDOM_NONCE=1
+      - PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      - I_AM_IN_A_CONTAINER=1
+      - CEPH_VERSION=quincy
+      - CEPH_POINT_RELEASE=-17.2.6
+      - CEPH_DEVEL=false
+      - CEPH_REF=quincy
+      - OSD_FLAVOR=default
+      - FSID=$FSID
+      - OSD_DEV=$OSD1_DEV
+    volumes:
+      - type: bind
+        source: osd-common/entrypoint.sh
+        target: /usr/local/bin/entrypoint.sh
+      - type: bind
+        source: osd-common/start-ceph-osd.sh
+        target: /usr/local/bin/start-ceph-osd.sh
+      - type: bind
+        source: /run/udev
+        target: /run/udev
+      - type: bind
+        source: ./osd-0/run
+        target: /var/run/ceph
+        bind:
+          selinux: "z"
+      - type: bind
+        source: ./osd-0/log
+        target: /var/log/ceph
+        bind:
+          selinux: "z"
+      - type: bind
+        source: ./osd-0/crash
+        target: /var/lib/ceph/crash
+        bind:
+          selinux: "z"
+      - type: bind
+        source: ./osd-0/conf
+        target: /etc/ceph
+      - type: bind
+        source: ./osd-common/conf/ceph.conf.template
+        target: /etc/ceph/ceph.conf.template
+      - type: bind
+        source: shared-data
+        target: /var/lib/ceph/shared-data
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep -v grep | grep -q /usr/bin/ceph-osd"]
+      interval: 10s
+      timeout: 30s
+      retries: 5
+      start_period: 5s
+    depends_on:
+      mon-master:
+        condition: service_healthy
+      mgr-master:
+        condition: service_healthy
+    networks:
+      - ceph-net
+  
+  osd-1:
+    image: quay.io/ceph/ceph@sha256:9c067c50038de818e10ab7887929b6bd496d5dcfe55fa1343854a54e61a82fab
+    container_name: osd-1
+    privileged: true
+    entrypoint: /usr/local/bin/entrypoint.sh
+    environment:
+      - TCMALLOC_MAX_TOTAL_THREAD_CACHE_BYTES=134217728
+      - CONTAINER_IMAGE=quay.io/ceph/ceph@sha256:9c067c50038de818e10ab7887929b6bd496d5dcfe55fa1343854a54e61a82fab
+      - NODE_NAME=osd-1
+      - CEPH_USE_RANDOM_NONCE=1
+      - PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      - I_AM_IN_A_CONTAINER=1
+      - CEPH_VERSION=quincy
+      - CEPH_POINT_RELEASE=-17.2.6
+      - CEPH_DEVEL=false
+      - CEPH_REF=quincy
+      - OSD_FLAVOR=default
+      - FSID=$FSID
+      - OSD_DEV=$OSD2_DEV
+    volumes:
+      - type: bind
+        source: osd-common/entrypoint.sh
+        target: /usr/local/bin/entrypoint.sh
+      - type: bind
+        source: osd-common/start-ceph-osd.sh
+        target: /usr/local/bin/start-ceph-osd.sh
+      - type: bind
+        source: /run/udev
+        target: /run/udev
+      - type: bind
+        source: ./osd-1/run
+        target: /var/run/ceph
+        bind:
+          selinux: "z"
+      - type: bind
+        source: ./osd-1/log
+        target: /var/log/ceph
+        bind:
+          selinux: "z"
+      - type: bind
+        source: ./osd-1/crash
+        target: /var/lib/ceph/crash
+        bind:
+          selinux: "z"
+      - type: bind
+        source: ./osd-1/conf
+        target: /etc/ceph
+      - type: bind
+        source: ./osd-common/conf/ceph.conf.template
+        target: /etc/ceph/ceph.conf.template
+      - type: bind
+        source: shared-data
+        target: /var/lib/ceph/shared-data
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep -v grep | grep -q /usr/bin/ceph-osd"]
+      interval: 10s
+      timeout: 30s
+      retries: 5
+      start_period: 5s
+    depends_on:
+      mon-master:
+        condition: service_healthy
+      mgr-master:
+        condition: service_healthy
+    networks:
+      - ceph-net
+  
+  osd-2:
+    image: quay.io/ceph/ceph@sha256:9c067c50038de818e10ab7887929b6bd496d5dcfe55fa1343854a54e61a82fab
+    container_name: osd-2
+    privileged: true
+    entrypoint: /usr/local/bin/entrypoint.sh
+    environment:
+      - TCMALLOC_MAX_TOTAL_THREAD_CACHE_BYTES=134217728
+      - CONTAINER_IMAGE=quay.io/ceph/ceph@sha256:9c067c50038de818e10ab7887929b6bd496d5dcfe55fa1343854a54e61a82fab
+      - NODE_NAME=osd-2
+      - CEPH_USE_RANDOM_NONCE=1
+      - PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      - I_AM_IN_A_CONTAINER=1
+      - CEPH_VERSION=quincy
+      - CEPH_POINT_RELEASE=-17.2.6
+      - CEPH_DEVEL=false
+      - CEPH_REF=quincy
+      - OSD_FLAVOR=default
+      - FSID=$FSID
+      - OSD_DEV=$OSD3_DEV
+    volumes:
+      - type: bind
+        source: osd-common/entrypoint.sh
+        target: /usr/local/bin/entrypoint.sh
+      - type: bind
+        source: osd-common/start-ceph-osd.sh
+        target: /usr/local/bin/start-ceph-osd.sh
+      - type: bind
+        source: /run/udev
+        target: /run/udev
+      - type: bind
+        source: ./osd-2/run
+        target: /var/run/ceph
+        bind:
+          selinux: "z"
+      - type: bind
+        source: ./osd-2/log
+        target: /var/log/ceph
+        bind:
+          selinux: "z"
+      - type: bind
+        source: ./osd-2/crash
+        target: /var/lib/ceph/crash
+        bind:
+          selinux: "z"
+      - type: bind
+        source: ./osd-2/conf
+        target: /etc/ceph
+      - type: bind
+        source: ./osd-common/conf/ceph.conf.template
+        target: /etc/ceph/ceph.conf.template
+      - type: bind
+        source: shared-data
+        target: /var/lib/ceph/shared-data
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep -v grep | grep -q /usr/bin/ceph-osd"]
+      interval: 10s
+      timeout: 30s
+      retries: 5
+      start_period: 5s
+    depends_on:
+      mon-master:
+        condition: service_healthy
+      mgr-master:
+        condition: service_healthy
+    networks:
+      - ceph-net
+  
+  mds:
+    image: quay.io/ceph/ceph@sha256:9c067c50038de818e10ab7887929b6bd496d5dcfe55fa1343854a54e61a82fab
+    container_name: mds
+    entrypoint: /usr/local/bin/entrypoint.sh
+    environment:
+      - CONTAINER_IMAGE=quay.io/ceph/ceph@sha256:9c067c50038de818e10ab7887929b6bd496d5dcfe55fa1343854a54e61a82fab
+      - NODE_NAME=mds
+      - CEPH_USE_RANDOM_NONCE=1
+      - TCMALLOC_MAX_TOTAL_THREAD_CACHE_BYTES=134217728
+      - PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      - I_AM_IN_A_CONTAINER=1
+      - CEPH_VERSION=quincy
+      - CEPH_POINT_RELEASE=-17.2.6
+      - CEPH_DEVEL=false
+      - CEPH_REF=quincy
+      - OSD_FLAVOR=default
+      - FSID=$FSID
+    volumes:
+      - type: bind
+        source: mds/entrypoint.sh
+        target: /usr/local/bin/entrypoint.sh
+      - type: bind
+        source: mds/start-ceph-mds.sh
+        target: /usr/local/bin/start-ceph-mds.sh
+      - type: bind
+        source: ./mds/run
+        target: /var/run/ceph
+        bind:
+          selinux: "z"
+      - type: bind
+        source: ./mds/log
+        target: /var/log/ceph
+        bind:
+          selinux: "z"
+      - type: bind
+        source: ./mds/crash
+        target: /var/lib/ceph/crash
+        bind:
+          selinux: "z"
+      - type: bind
+        source: ./mds/conf
+        target: /etc/ceph
+      - type: bind
+        source: shared-data
+        target: /var/lib/ceph/shared-data
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep -v grep | grep -q /usr/bin/ceph-mds"]
+      interval: 10s
+      timeout: 30s
+      retries: 5
+      start_period: 5s
+    depends_on:
+      osd-0:
+        condition: service_healthy
+      osd-1:
+        condition: service_healthy
+      osd-2:
+        condition: service_healthy
+    networks:
+      - ceph-net
+  
+  rgw:
+    image: quay.io/ceph/ceph@sha256:9c067c50038de818e10ab7887929b6bd496d5dcfe55fa1343854a54e61a82fab
+    container_name: rgw
+    entrypoint: /usr/local/bin/entrypoint.sh
+    environment:
+      - CONTAINER_IMAGE=quay.io/ceph/ceph@sha256:9c067c50038de818e10ab7887929b6bd496d5dcfe55fa1343854a54e61a82fab
+      - NODE_NAME=ceph-pool-1
+      - CEPH_USE_RANDOM_NONCE=1
+      - TCMALLOC_MAX_TOTAL_THREAD_CACHE_BYTES=134217728
+      - PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      - I_AM_IN_A_CONTAINER=1
+      - CEPH_VERSION=quincy
+      - CEPH_POINT_RELEASE=-17.2.6
+      - CEPH_DEVEL=false
+      - CEPH_REF=quincy
+      - OSD_FLAVOR=default
+      - FSID=$FSID
+    ports:
+      - "7480:7480"
+    volumes:
+      - type: bind
+        source: rgw/entrypoint.sh
+        target: /usr/local/bin/entrypoint.sh
+      - type: bind
+        source: rgw/start-ceph-rgw.sh
+        target: /usr/local/bin/start-ceph-rgw.sh
+      - type: bind
+        source: ./rgw/run
+        target: /var/run/ceph
+        bind:
+          selinux: "z"
+      - type: bind
+        source: ./rgw/log
+        target: /var/log/ceph
+        bind:
+          selinux: "z"
+      - type: bind
+        source: ./rgw/crash
+        target: /var/lib/ceph/crash
+        bind:
+          selinux: "z"
+      - type: bind
+        source: ./rgw/conf
+        target: /etc/ceph
+      - type: bind
+        source: shared-data
+        target: /var/lib/ceph/shared-data
+    depends_on:
+      mds:
+        condition: service_healthy
+    networks:
+      - ceph-net
+
+networks:
+  ceph-net:
